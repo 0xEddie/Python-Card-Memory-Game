@@ -1,4 +1,4 @@
-"""Memory Version 1"""
+"""Memory Version 2"""
 import time, pygame, random
 from uagame import Window
 from pygame.locals import *
@@ -26,13 +26,16 @@ class Game:
         # create all of the game attributes
         self.window = window
         Tile.set_window(window)        
-        self.pause_time = 0.04 # smaller is faster game
+        self.pause_time = 0.0001 # smaller is faster game
         self.close_clicked = False
         self.continue_game = True 
         self.image_list = []
         self.create_image_list()
+        self.filled = []
         self.board = [ ]
         self.create_board()
+        self.score = 0
+        self.flipped_counter = 0
     
     def create_image_list(self):
         # creates and shuffles the list of images
@@ -80,6 +83,18 @@ class Game:
         # close the game if someone has clicked on the close button
         if event.type == QUIT:
             self.close_clicked = True
+        if event.type == MOUSEBUTTONUP and self.continue_game:
+            self.handle_mouse_up(event.pos)
+        
+    def handle_mouse_up(self, click_position):
+        for row in self.board:
+            for tile in row:
+                self.flipped_counter += Tile.select(click_position)
+                print(self.flipped_counter)
+        return self.flipped_counter                    
+                    
+
+        
 
     def draw(self):
         # Draw all game objects.
@@ -90,18 +105,29 @@ class Game:
         for row in self.board:
             for tile in row:
                 tile.draw()
+        self.draw_score()
 
         self.window.update()
+    def draw_score(self):
+            font_size = 70
+            self.window.set_font_size(font_size)
+            self.window.set_font_color('white')
+            string_x = self.window.get_width() - self.window.get_string_width(str(self.score))
+            string_y = 0
+            display_string = str(self.score)
+            self.window.draw_string(display_string,string_x,string_y)
+    
         
     def update(self):
         # Update the game objects.
         # - self is the Game to update
-        pass
+        self.score = pygame.time.get_ticks()//1000
              
     def decide_continue(self):
         # Check and remember if the game should continue
         # - self is the Game to check
-        pass
+        if self.flipped_counter == 16:
+            self.continue_game = False
 
 class Tile:
     # represents a single on a Tic Tac Toe board
@@ -109,6 +135,7 @@ class Tile:
     # Class Attributes
     border_width = 5
     window = None
+    hidden_image = pygame.image.load('image0.bmp') 
     
     # Class methods
     @classmethod
@@ -122,10 +149,13 @@ class Tile:
         self.rect = pygame.Rect(x, y, width, height)
         
         # attributes related to drawing our tile content
-        self.content = image
-        
+        self.flipped_image = image
+        self.image_list = Tile.hidden_image
         # the window to draw our tile to
         self.surface = Tile.window.get_surface()
+        self.exposed = False
+        
+        
         
     def draw(self):
         # draws our tile contents and borders to the screen
@@ -136,6 +166,16 @@ class Tile:
         pygame.draw.rect(self.surface, rect_color, self.rect, Tile.border_width)
         
         # draw image to tile
-        self.surface.blit(self.content, self.rect)
+        
+        self.surface.blit(self.image_list, self.rect)
+            
     
+    def select(self,position):
+        
+        if self.rect.collidepoint(position) and not self.exposed:
+            if self.surface.blit(self.image_list, self.rect):
+                self.image_list = self.flipped_image
+                self.exposed = True
+        return self.exposed        
+        
 main()
