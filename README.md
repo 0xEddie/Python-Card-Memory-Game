@@ -15,3 +15,6 @@ must be in random locations in the grid. Player actions must be ignored.
 Rectangles initially covered with blue images with a question mark displayed on each tile. A black panel on the right is displayed with the score displayed in white in the top right corner of the window, in white size 72 font. The score increments in seconds elapsed. When a tile is clicked, it flips over.
 When a second tile is clicked, it also flips face up.
 The game continues until the player matches flips all the tiles, or clicks the 'x' in the top right of the window.
+
+## Version Three
+All game features are implemented.

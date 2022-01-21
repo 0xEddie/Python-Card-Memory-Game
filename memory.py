@@ -1,4 +1,4 @@
-"""Memory Version 2"""
+"""Memory Version 3"""
 import time, pygame, random
 from uagame import Window
 from pygame.locals import *
@@ -14,7 +14,6 @@ def main():
     window.close()
 
 # User-defined classes
-
 class Game:
     # Defines a game of Tic Tac Toe
 
@@ -28,14 +27,14 @@ class Game:
         Tile.set_window(window)        
         self.pause_time = 0.0001 # smaller is faster game
         self.close_clicked = False
-        self.continue_game = True 
+        self.continue_game = True
         self.image_list = []
         self.create_image_list()
-        self.filled = []
-        self.board = [ ]
+        self.board = []
         self.create_board()
         self.score = 0
         self.flipped_counter = 0
+        self.tile1, self.tile2 = None, None
     
     def create_image_list(self):
         # creates and shuffles the list of images
@@ -75,27 +74,31 @@ class Game:
             time.sleep(self.pause_time) # set game velocity by pausing
                        
     def handle_event(self):
-        # Handle each user event by changing the game state
-        # appropriately.image = sset_windowelf.image_list[4*row_index + col_index]
+        # Handle each user event by changing the game state appropriately
         # - self is the Game whose events will be handled.
-
         event = pygame.event.poll()
         # close the game if someone has clicked on the close button
         if event.type == QUIT:
             self.close_clicked = True
         if event.type == MOUSEBUTTONUP and self.continue_game:
             self.handle_mouse_up(event.pos)
+            
         
     def handle_mouse_up(self, click_position):
+        # flips an unexposed tile when mouse left button is released from 
+        # down clicked position
+        # - self: the Game the mouse is being clicked on
+        # - click_positon: the coords of the mouse from a MOUSEBUTTONUP event
         for row in self.board:
             for tile in row:
-                self.flipped_counter += Tile.select(click_position)
-                print(self.flipped_counter)
-        return self.flipped_counter                    
-                    
-
-        
-
+                if tile.select(click_position):
+                    tile.expose()
+                    if self.tile1 is None and self.tile2 is None:
+                        self.tile1 = tile
+                    elif self.tile1 is not None and self.tile2 is None:
+                        self.tile2 = tile
+                
+            
     def draw(self):
         # Draw all game objects.
         # - self is the Game to draw        
@@ -106,36 +109,50 @@ class Game:
             for tile in row:
                 tile.draw()
         self.draw_score()
-
         self.window.update()
-    def draw_score(self):
-            font_size = 70
-            self.window.set_font_size(font_size)
-            self.window.set_font_color('white')
-            string_x = self.window.get_width() - self.window.get_string_width(str(self.score))
-            string_y = 0
-            display_string = str(self.score)
-            self.window.draw_string(display_string,string_x,string_y)
-    
         
+    def draw_score(self):
+        # draws the score in the right panel in the window
+        # - self: the Game to draw on
+        font_size = 70
+        self.window.set_font_size(font_size)
+        self.window.set_font_color('white')
+        string_x = self.window.get_width() - self.window.get_string_width(str(self.score))
+        string_y = 0
+        display_string = str(self.score)
+        self.window.draw_string(display_string,string_x,string_y)
+    
     def update(self):
         # Update the game objects.
-        # - self is the Game to update
+        # - self: the Game to update
         self.score = pygame.time.get_ticks()//1000
-             
+        self.compare()
+        
+    def compare(self):
+        # compares contents of selected tiles
+        # - self: the Game containing the selected tiles
+        if self.tile1 is not None and self.tile2 is not None:
+            if self.tile1 == self.tile2:
+                self.flipped_counter += 2
+            else:
+                time.sleep(1)
+                self.tile1.flip()
+                self.tile2.flip()
+            self.tile1, self.tile2 = None, None
+         
     def decide_continue(self):
         # Check and remember if the game should continue
-        # - self is the Game to check
-        if self.flipped_counter == 16:
+        # - self: the Game to check
+        if self.flipped_counter > 15:
             self.continue_game = False
 
 class Tile:
-    # represents a single on a Tic Tac Toe board
+    # represents a single tile on a Tic Tac Toe board
     
     # Class Attributes
     border_width = 5
     window = None
-    hidden_image = pygame.image.load('image0.bmp') 
+    cover_image = pygame.image.load('image0.bmp')
     
     # Class methods
     @classmethod
@@ -149,13 +166,19 @@ class Tile:
         self.rect = pygame.Rect(x, y, width, height)
         
         # attributes related to drawing our tile content
-        self.flipped_image = image
-        self.image_list = Tile.hidden_image
+        self.under_image = image 
         # the window to draw our tile to
         self.surface = Tile.window.get_surface()
         self.exposed = False
         
-        
+    def __eq__(self,other):
+        # comparison of image contents of tile instances
+        # - self: first tile selected
+        # - other: second tile selected
+        match = False
+        if self.under_image == other.under_image:
+            match = True
+        return match
         
     def draw(self):
         # draws our tile contents and borders to the screen
@@ -166,16 +189,26 @@ class Tile:
         pygame.draw.rect(self.surface, rect_color, self.rect, Tile.border_width)
         
         # draw image to tile
-        
-        self.surface.blit(self.image_list, self.rect)
+        if self.exposed:
+            self.surface.blit(self.under_image, self.rect)
+        else:
+            self.surface.blit(Tile.cover_image, self.rect)
             
+    def expose(self):
+        # set tile exposure to True
+        # - self: the Tile to expose
+        self.exposed = True
+        
+    def flip(self):
+        # set tile exposure to False
+        # - self: the Tile to unexpose
+        self.exposed = False  
     
     def select(self,position):
-        
-        if self.rect.collidepoint(position) and not self.exposed:
-            if self.surface.blit(self.image_list, self.rect):
-                self.image_list = self.flipped_image
-                self.exposed = True
-        return self.exposed        
-        
+        # flips tile if mouse is on tile during MOUSEBUTTONUP event, and if the
+        # tile is not already exposed
+        # - self: the Tile to flip
+        # - position: the position of the mouse during MOUSEBUTTONUP event
+        return (self.rect.collidepoint(position) and not self.exposed)
+            
 main()
